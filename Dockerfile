@@ -13,31 +13,32 @@ RUN cd server && \
 
 # --- Stage 2: Build Webapp (Node) ---
 FROM --platform=$BUILDPLATFORM node:18-alpine AS nodebuild
-
-# Build-Tools für Notfälle
 RUN apk add --no-cache python3 make g++ autoconf automake libtool nasm libpng-dev zlib-dev
-
 WORKDIR /webapp
 COPY --from=gobuild /go/src/focalboard/webapp .
 
-# DSR-FIX für ARM64: Problematische Grafik-Libs entfernen, die auf Ampere/Alpine scheitern
+# ARM64 Fix: Problematische Grafik-Libs entfernen
 RUN sed -i '/optipng-bin/d' package.json && \
     sed -i '/gifsicle/d' package.json && \
     sed -i '/jpegtran-bin/d' package.json
 
-# Verhindert, dass zusätzliche Binaries nachgeladen werden
 ENV SKIP_PRE_BUILD=1
 ENV ADRENO_SKIP_OPTIMIZATION=true
-
 RUN npm install --frozen-lockfile --ignore-scripts && npm run pack
 
-# --- Stage 3: Final Runtime ---
+# --- Stage 3: Final Runtime (Clean & Lean) ---
 FROM alpine:3.19
 WORKDIR /opt/focalboard
+
+# Binaries und Web-Assets kopieren
 COPY --from=gobuild /go/src/focalboard/bin/docker/focalboard-server /opt/focalboard/bin/focalboard-server
 COPY --from=nodebuild /webapp/pack /opt/focalboard/pack
-RUN echo '{"serverRoot": "http://localhost:8000", "port": 8000, "dbtype": "postgres", "dbconfig": "", "useSSL": false}' > /opt/focalboard/config.json
+
+# Verzeichnisse für Daten und Dateien erstellen
+RUN mkdir -p /opt/focalboard/data /opt/focalboard/files
 RUN chmod +x /opt/focalboard/bin/focalboard-server
+
+# KEINE config.json mehr hier – wir erzwingen Environment Variables!
 
 EXPOSE 8000
 CMD ["/opt/focalboard/bin/focalboard-server"]
