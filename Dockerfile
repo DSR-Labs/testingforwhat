@@ -33,7 +33,7 @@ RUN mkdir -p /opt/focalboard/data /opt/focalboard/files
 
 # DSR-FIX: Eine komplett leere JSON-Datei. 
 # Das verhindert, dass leere Werte aus der Datei deine Env-Vars überschreiben.
-RUN echo '{}' > /opt/focalboard/config.json
+RUN rm -f /opt/focalboard/config.json && mkdir -p /opt/focalboard/data /opt/focalboard/files
 
 RUN chmod +x /opt/focalboard/bin/focalboard-server
 
