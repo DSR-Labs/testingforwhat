@@ -23,19 +23,23 @@ ENV SKIP_PRE_BUILD=1
 ENV ADRENO_SKIP_OPTIMIZATION=true
 RUN npm install --frozen-lockfile --ignore-scripts && npm run pack
 
+# --- Stage 3: Final Runtime (DSR Optimized) ---
 FROM alpine:3.19
 WORKDIR /opt/focalboard
 
+# Binaries und Assets kopieren
 COPY --from=gobuild /go/src/focalboard/bin/docker/focalboard-server /opt/focalboard/bin/focalboard-server
 COPY --from=nodebuild /webapp/pack /opt/focalboard/pack
 
+# Verzeichnisse anlegen
 RUN mkdir -p /opt/focalboard/data /opt/focalboard/files
 
-# DSR-FIX: Eine komplett leere JSON-Datei. 
-# Das verhindert, dass leere Werte aus der Datei deine Env-Vars überschreiben.
-RUN rm -f /opt/focalboard/config.json && mkdir -p /opt/focalboard/data /opt/focalboard/files
+# FIX: Die Datei MUSS existieren, damit Focalboard startet.
+# Wir lassen sie fast leer, damit sie die Env-Vars nicht überschreibt.
+RUN echo '{"dbtype":"postgres"}' > /opt/focalboard/config.json
 
 RUN chmod +x /opt/focalboard/bin/focalboard-server
 
 EXPOSE 8000
-CMD ["/opt/focalboard/bin/focalboard-server"]
+# Wir starten aus dem WORKDIR, damit config.json gefunden wird
+CMD ["./bin/focalboard-server"]
