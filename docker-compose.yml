@@ -7,15 +7,21 @@ services:
     environment:
       - VIRTUAL_HOST=${VIRTUAL_HOST}
       - VIRTUAL_PORT=8000
+      # Variante 1: Kurzes Präfix
       - FB_DB_TYPE=postgres
-      # Wir nutzen hier eine robustere Schreibweise
       - FB_DB_CONFIG=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
+      # Variante 2: Langes Präfix (als Backup)
+      - FOCALBOARD_DB_TYPE=postgres
+      - FOCALBOARD_DB_CONFIG=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
+    volumes:
+      - focalboard_data:/opt/focalboard/data
     depends_on:
       postgres:
         condition: service_healthy
 
   postgres:
     image: postgres:17-alpine
+    # ... Rest bleibt gleich
     restart: unless-stopped
     environment:
       - POSTGRES_USER=${POSTGRES_USER}
