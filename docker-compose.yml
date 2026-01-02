@@ -4,11 +4,11 @@ services:
       context: .
       dockerfile: Dockerfile
     restart: unless-stopped
-    # Wichtig für Dokploy/Traefik SSL-Routing
+    # Dokploy nutzt diese Labels/Variablen für das SSL-Routing
     environment:
       - VIRTUAL_HOST=${VIRTUAL_HOST}
       - VIRTUAL_PORT=8000
-      # FB_ Präfix ist zwingend erforderlich für Focalboard in Docker
+      # Das "FB_" Präfix zwingt Focalboard, die interne Config zu ignorieren
       - FB_DB_TYPE=postgres
       - FB_DB_CONFIG=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
     volumes:
@@ -27,7 +27,7 @@ services:
     volumes:
       - focalboard_postgres:/var/lib/postgresql/data
     healthcheck:
-      # Prüft intern, ob die DB Anfragen entgegennimmt
+      # Stellt sicher, dass die DB bereit ist, bevor die App startet
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
       timeout: 5s
