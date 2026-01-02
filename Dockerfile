@@ -1,15 +1,11 @@
 # --- Stage 1: Build Server (Go) ---
 FROM --platform=$BUILDPLATFORM golang:1.22-alpine AS gobuild
 
-# Notwendige Build-Tools installieren
 RUN apk add --no-cache make git bash build-base
 
 WORKDIR /go/src/focalboard
-
-# Quellcode direkt klonen
 RUN git clone https://github.com/mattermost/focalboard.git .
 
-# Den Server nativ für ARM64 bauen mit Fix für pread64/pwrite64
 RUN cd server && \
     CGO_ENABLED=1 \
     CGO_CFLAGS="-D_LARGEFILE64_SOURCE" \
@@ -21,28 +17,30 @@ RUN cd server && \
 # --- Stage 2: Build Webapp (Node) ---
 FROM --platform=$BUILDPLATFORM node:18-alpine AS nodebuild
 
+# FIX für ARM64: Build-Tools für node-gyp und Grafik-Libs (gifsicle, optipng, etc.) hinzufügen
+RUN apk add --no-cache \
+    python3 \
+    make \
+    g++ \
+    autoconf \
+    automake \
+    libtool \
+    nasm \
+    libpng-dev \
+    zlib-dev
+
 WORKDIR /webapp
 COPY --from=gobuild /go/src/focalboard/webapp .
 
-# DSR-Standard: Schnell & effizient
+# Installation und Build
 RUN npm install --frozen-lockfile && npm run pack
 
-# --- Stage 3: Final Runtime (Minimal Image) ---
+# --- Stage 3: Final Runtime ---
 FROM alpine:3.19
-
-LABEL maintainer="DSR-Labs"
-LABEL description="Focalboard optimized for Ampere ARM64"
-
 WORKDIR /opt/focalboard
-
-# Nur Binaries & Assets kopieren für ein schmales Image
 COPY --from=gobuild /go/src/focalboard/bin/docker/focalboard-server /opt/focalboard/bin/focalboard-server
 COPY --from=nodebuild /webapp/pack /opt/focalboard/pack
-
-# Standard-Konfiguration erzeugen
 RUN echo '{"serverRoot": "http://localhost:8000", "port": 8000, "dbtype": "postgres", "dbconfig": "", "useSSL": false}' > /opt/focalboard/config.json
-
-# Sicherheit: Ausführrechte setzen
 RUN chmod +x /opt/focalboard/bin/focalboard-server
 
 EXPOSE 8000
