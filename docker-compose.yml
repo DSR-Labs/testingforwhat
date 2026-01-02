@@ -7,10 +7,8 @@ services:
     environment:
       - VIRTUAL_HOST=${VIRTUAL_HOST}
       - VIRTUAL_PORT=8000
-      # Variante 1: Kurzes Präfix
       - FB_DB_TYPE=postgres
       - FB_DB_CONFIG=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
-      # Variante 2: Langes Präfix (als Backup)
       - FOCALBOARD_DB_TYPE=postgres
       - FOCALBOARD_DB_CONFIG=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
     volumes:
@@ -21,7 +19,6 @@ services:
 
   postgres:
     image: postgres:17-alpine
-    # ... Rest bleibt gleich
     restart: unless-stopped
     environment:
       - POSTGRES_USER=${POSTGRES_USER}
@@ -35,6 +32,9 @@ services:
       timeout: 5s
       retries: 5
 
+# WICHTIG: Hier müssen BEIDE Volumes definiert sein
 volumes:
+  focalboard_data:
+    driver: local
   focalboard_postgres:
     driver: local
