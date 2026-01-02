@@ -16,29 +16,27 @@ FROM --platform=$BUILDPLATFORM node:18-alpine AS nodebuild
 RUN apk add --no-cache python3 make g++ autoconf automake libtool nasm libpng-dev zlib-dev
 WORKDIR /webapp
 COPY --from=gobuild /go/src/focalboard/webapp .
-
-# ARM64 Fix: Problematische Grafik-Libs entfernen
 RUN sed -i '/optipng-bin/d' package.json && \
     sed -i '/gifsicle/d' package.json && \
     sed -i '/jpegtran-bin/d' package.json
-
 ENV SKIP_PRE_BUILD=1
 ENV ADRENO_SKIP_OPTIMIZATION=true
 RUN npm install --frozen-lockfile --ignore-scripts && npm run pack
 
-# --- Stage 3: Final Runtime (Clean & Lean) ---
+# --- Stage 3: Final Runtime ---
 FROM alpine:3.19
 WORKDIR /opt/focalboard
-
-# Binaries und Web-Assets kopieren
 COPY --from=gobuild /go/src/focalboard/bin/docker/focalboard-server /opt/focalboard/bin/focalboard-server
 COPY --from=nodebuild /webapp/pack /opt/focalboard/pack
 
-# Verzeichnisse für Daten und Dateien erstellen
+# Erstelle die Verzeichnisse
 RUN mkdir -p /opt/focalboard/data /opt/focalboard/files
-RUN chmod +x /opt/focalboard/bin/focalboard-server
 
-# KEINE config.json mehr hier – wir erzwingen Environment Variables!
+# FIX: Wir erstellen eine minimale config.json, damit der Server startet.
+# Die FB_ Umgebungsvariablen aus der docker-compose überschreiben diese Werte dann.
+RUN echo '{"dbtype":"postgres","dbconfig":""}' > /opt/focalboard/config.json
+
+RUN chmod +x /opt/focalboard/bin/focalboard-server
 
 EXPOSE 8000
 CMD ["/opt/focalboard/bin/focalboard-server"]
